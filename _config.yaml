@@ -1,0 +1,33 @@
+# All the configuration variables for the static site generator.  The
+# idea is that the user need only modify this file to suit their own
+# static site content organization instead of having to look in the
+# actual source code.
+
+# Below, in general variables beginning with "site_" are those that
+# affect the eventual presentation of the site, while those beginning
+# with "pre_" are about the working directory of the site creator.  In
+# other words, if one writes one's markdown files in the directory
+# "wiki/", then pre_page_directory will be set to; however, if one then
+# wants to publish those files to the root directory of the server, then
+# site_pages_directory will be "" (i.e. same as the site directory).
+
+site_directory:  "_site/"
+site_pages_directory:  "" # "" will make it the same as site_directory
+pre_pages_directory:  "wiki/"
+pre_pages_glob:  "*.md"
+# Tags are pulled from the pages themselves, so they won't have a "pre_"
+# equivalent
+site_tags_directory:  "_tags/"
+site_css_directory:  "_css/"
+pre_css_directory:  "css/"
+pre_images_directory:  "images/"
+site_images_directory:  ""
+pre_templates_directory:  "templates/"
+pre_static_directory:  "static/"
+site_static_directory:  "_static/"
+
+# Pages that are automatically generated
+all_pages_page_location:  "_all"
+sitemap_location:  "sitemap.xml"
+rss_feed_location:  "rss.xml"
+atom_feed_location:  "atom.xml"
