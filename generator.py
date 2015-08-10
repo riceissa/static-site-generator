@@ -1,32 +1,6 @@
 #!/usr/bin/python3
 # -*- coding: utf-8 -*-
 
-# Copyright (c) 2014, Issa Rice
-# All rights reserved.
-#
-# Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are
-# met:
-#
-# * Redistributions of source code must retain the above copyright
-#   notice, this list of conditions and the following disclaimer.
-#
-# * Redistributions in binary form must reproduce the above copyright
-#   notice, this list of conditions and the following disclaimer in the
-#   documentation and/or other materials provided with the distribution.
-#
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-# A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-# HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-# SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-# LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-# DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-# THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
 import glob
 import json
 from jinja2 import Template, Environment, FileSystemLoader
@@ -39,6 +13,50 @@ import time
 from classes import *
 from tag_ontology import *
 from config import *
+
+def main():
+    import argparse
+    parser = argparse.ArgumentParser(
+        description='generate a site or just a few files')
+    parser.add_argument("--files", "--file", "-f", nargs='+',
+        metavar='FILE',
+        help='the locations of files to compile; accepts patterns'
+    )
+    parser.add_argument("--commit_ps", action="store_true",
+        help="commit page source; use the current commit's page source link instead of linking to the latest one")
+    args = parser.parse_args()
+    if args.commit_ps:
+        args.commit_ps = run_command("git rev-parse --verify HEAD").strip()
+    if args.files is not None:
+        for p in args.files:
+            create_single_page(p).write()
+    else:
+        # So build the whole site
+        clean()
+        pages_pat = PRE_PAGES_DIRECTORY + PRE_PAGES_GLOB
+        list_filepath = [Filepath(i) for i in glob.glob(pages_pat)]
+        list_page, list_tag = build_data(list_filepath)
+        compile_scss("common")
+        compile_scss("minimal")
+        compile_scss("standard")
+        compile_scss("solarized_light")
+        compile_scss("solarized_dark")
+        copy_files(PRE_IMAGES_DIRECTORY + "*", SITE_DIRECTORY)
+        copy_files(PRE_STATIC_DIRECTORY + "*",
+            SITE_DIRECTORY + SITE_STATIC_DIRECTORY)
+        for page in create_pages(list_page):
+            page.write()
+        for page in create_tag_pages(list_page, list_tag):
+            page.write()
+        create_page_with_all_tags(list_tag).write()
+        create_page_with_all_pages(list_page).write()
+        for page in create_aliases(list_page):
+            page.write()
+        create_sitemap(list_page, list_tag).write()
+        create_rss(list_page).write()
+        # For backwards-compatibility
+        create_rss(list_page, "feed.xml").write()
+        create_atom(list_page).write()
 
 def clean():
     print("Removing {d}".format(d=SITE_DIRECTORY), file=sys.stderr)
@@ -250,45 +268,4 @@ def create_aliases(list_page):
                 yield Page(data=final, destination=write_to)
 
 if __name__ == '__main__':
-    import argparse
-    parser = argparse.ArgumentParser(
-        description='generate a site or just a few files')
-    parser.add_argument("--files", "--file", "-f", nargs='+',
-        metavar='FILE',
-        help='the locations of files to compile; accepts patterns'
-    )
-    parser.add_argument("--commit_ps", action="store_true",
-        help="commit page source; use the current commit's page source link instead of linking to the latest one")
-    args = parser.parse_args()
-    if args.commit_ps:
-        args.commit_ps = run_command("git rev-parse --verify HEAD").strip()
-    if args.files is not None:
-        for p in args.files:
-            create_single_page(p).write()
-    else:
-        # So build the whole site
-        clean()
-        pages_pat = PRE_PAGES_DIRECTORY + PRE_PAGES_GLOB
-        list_filepath = [Filepath(i) for i in glob.glob(pages_pat)]
-        list_page, list_tag = build_data(list_filepath)
-        compile_scss("common")
-        compile_scss("minimal")
-        compile_scss("standard")
-        compile_scss("solarized_light")
-        compile_scss("solarized_dark")
-        copy_files(PRE_IMAGES_DIRECTORY + "*", SITE_DIRECTORY)
-        copy_files(PRE_STATIC_DIRECTORY + "*",
-            SITE_DIRECTORY + SITE_STATIC_DIRECTORY)
-        for page in create_pages(list_page):
-            page.write()
-        for page in create_tag_pages(list_page, list_tag):
-            page.write()
-        create_page_with_all_tags(list_tag).write()
-        create_page_with_all_pages(list_page).write()
-        for page in create_aliases(list_page):
-            page.write()
-        create_sitemap(list_page, list_tag).write()
-        create_rss(list_page).write()
-        # For backwards-compatibility
-        create_rss(list_page, "feed.xml").write()
-        create_atom(list_page).write()
+    main()
