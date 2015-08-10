@@ -10,8 +10,6 @@ from jinja2 import Template, Environment, FileSystemLoader
 from tag_ontology import *
 from util import *
 import sys
-from html import escape
-import html
 import logging
 
 class AbsolutePathException(Exception):
@@ -293,18 +291,13 @@ class Page(object):
         """
         env = Environment(loader=FileSystemLoader("."))
         skeleton = env.get_template("templates/skeleton.html")
-        # Make a copy so HTML escapes won't be permanent
-        metadata = dict(self.metadata)
-        for k in metadata:
-            if isinstance(metadata[k], str):
-                metadata[k] = html.escape(metadata[k])
         # Make tags list
         tags = []
         for tag in metadata["tags"]:
             path = Filepath(slug(tag)).route_with(to_dir(tags_dir)).path
             tags.append({"name": tag, "path": path})
         tags.sort(key=lambda t: t["name"].lower())
-        final = skeleton.render(body=self.pandoc_compiled(), page=metadata,
+        final = skeleton.render(body=self.pandoc_compiled(), page=self.metadata,
             tags=tags, source=self.origin.path,
             base=self.origin.route_with(set_extension("")).route_with(
                 drop_one_parent_dir_route
