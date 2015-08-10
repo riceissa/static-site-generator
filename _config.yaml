@@ -26,6 +26,8 @@ pre_templates_directory:  "templates/"
 pre_static_directory:  "static/"
 site_static_directory:  "_static/"
 
+pandoc_template: "templates/toc.html"
+
 # Pages that are automatically generated
 all_pages_page_location:  "_all"
 sitemap_location:  "sitemap.xml"
