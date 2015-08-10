@@ -1,0 +1,1 @@
+- a file with a broken YAML header, i.e. one that begins with "---" but has no end
