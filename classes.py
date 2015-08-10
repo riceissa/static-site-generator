@@ -11,6 +11,7 @@ from tag_ontology import *
 from util import *
 import sys
 from html import escape
+import html
 import logging
 
 class AbsolutePathException(Exception):
@@ -29,11 +30,7 @@ class Filepath(object):
             self.path = path.path
         else:
             path = path.strip()
-            if path[0] in ["/", "~"]:
-                raise AbsolutePathException(
-                    "path is absolute; must be relative"
-                )
-            elif path[-1] in ["/"]:
+            if path[-1] in ["/"]:
                 raise DirectoryException(
                     "path is a directory; must be a file"
                 )
@@ -227,9 +224,21 @@ def process_metadata(metadata, **kwargs):
 
 class Page(object):
     """
+    Represents a page.
     """
     def __init__(self, origin=None, metadata={}):
-        self.origin = origin
+        """
+        Initialize Page object.
+
+        Args:
+            origin: A string containing the location of the source file for the
+                page. This is converted to a Filepath object for better routing.
+            metadata: A dictionary containing the metadata for the page. This is
+                most likely a dictionary produced from a YAML header. Each
+                key-value pair can then be used in templates when producing the
+                page.
+        """
+        self.origin = Filepath(origin)
         self.metadata = metadata
 
     @classmethod
@@ -246,11 +255,80 @@ class Page(object):
         meta_dict = yaml.load(meta_str, Loader=BaseLoader)
         return cls(origin=filename, metadata=meta_dict)
 
-    def pandoc_compiled(self):
-        pass
+    pandoc_options = ("-f json -t html --toc --toc-depth=4 " +
+            # FIXME make sure this exists somehow
+            #"--template=templates/toc.html " +
+            "--smart --mathjax " +
+            "--base-header-level=2 --filter ./url_filter.py")
+
+    def pandoc_compiled(self, options=pandoc_options):
+        """
+        Compile page with Pandoc and return the string of the output.
+
+        Args:
+            options: A string containing Pandoc flags for use in compiling the
+                page.
+
+        Returns:
+            A string containing the output given by Pandoc.
+        """
+        command = "pandoc --smart -f markdown -t json " + self.origin.path
+        # Parse to JSON first
+        proc_parse = subprocess.Popen(shlex.split(command),
+            stdout=subprocess.PIPE)
+        stdout, _ = proc_parse.communicate()
+        ast = json.dumps(json.loads(str(stdout, encoding="utf-8")),
+            separators=(",",":"))
+        # Now compile to HTML
+        command = "pandoc " + options
+        proc_html = subprocess.Popen(shlex.split(command),
+            stdout=subprocess.PIPE, stdin=subprocess.PIPE)
+        stdout, _ = proc_html.communicate(input=bytes(ast, 'utf-8'))
+        return str(stdout, encoding="utf-8")
 
 
-    def compiled(self, tags_dir, commit_ps=""):
+    def compiled(self, tags_dir, permalink=""):
+        """
+        Compile page all the way and return the string of the output.
+        """
+        env = Environment(loader=FileSystemLoader("."))
+        skeleton = env.get_template("templates/skeleton.html")
+        # Make a copy so HTML escapes won't be permanent
+        metadata = dict(self.metadata)
+        for k in metadata:
+            if isinstance(metadata[k], str):
+                metadata[k] = html.escape(metadata[k])
+        # Make tags list
+        tags = []
+        for tag in metadata["tags"]:
+            path = Filepath(slug(tag)).route_with(to_dir(tags_dir)).path
+            tags.append({"name": tag, "path": path})
+        tags.sort(key=lambda t: t["name"].lower())
+        final = skeleton.render(body=self.pandoc_compiled(), page=metadata,
+            tags=tags, source=self.origin.path,
+            base=self.origin.route_with(set_extension("")).route_with(
+                drop_one_parent_dir_route
+            ), path="./")
+        return final
+
+    def base(self):
+        return self.origin.route_with(set_extension("")).route_with(
+            drop_one_parent_dir_route).path
+
+    def __repr__(self):
+        return "Page({})".format(self.origin.path.__repr__())
+
+    def revision_date(self, fmt=None):
+        '''
+        Return the last major revision date of the page. Takes format
+        fmt, which accepts None (return as object), "rfc822" (RSS 2.0),
+        "rfc3339" (Atom), or any valid strftime format. Return None if
+        no last major revision date is set.
+        '''
+        rev_date = self.metadata.get('last_major_revision_date', '')
+        if rev_date:
+            date_obj = datetime.strptime(rev_date, '%Y-%m-%d')
+            return get_date(date_obj, fmt=fmt)
 
 class PageOld(object):
     '''
