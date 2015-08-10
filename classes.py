@@ -11,6 +11,7 @@ from tag_ontology import *
 from util import *
 import sys
 from html import escape
+import logging
 
 class AbsolutePathException(Exception):
     pass
@@ -228,6 +229,28 @@ class Page(object):
     """
     """
     def __init__(self, origin=None, metadata={}):
+        self.origin = origin
+        self.metadata = metadata
+
+    @classmethod
+    def from_filename(cls, filename):
+        with open(filename, "r") as f:
+            meta_str = ""
+            initial = f.readline()
+            # Check if file starts with valid YAML delimiter
+            if initial == '---\n':
+                curr = f.readline()
+                while curr not in ['---\n', '...\n', '']:
+                    meta_str += curr
+                    curr = f.readline()
+        meta_dict = yaml.load(meta_str, Loader=BaseLoader)
+        return cls(origin=filename, metadata=meta_dict)
+
+    def pandoc_compiled(self):
+        pass
+
+
+    def compiled(self, tags_dir, commit_ps=""):
 
 class PageOld(object):
     '''

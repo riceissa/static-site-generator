@@ -9,13 +9,23 @@ from datetime import datetime
 import hashlib
 import shutil
 import time
+import argparse
 
 from classes import *
 from tag_ontology import *
 from config import *
 
 def main():
-    import argparse
+    parser = argparse.ArgumentParser(
+        description="a simple static site generator")
+    parser.add_argument("--files", "--file", "-f", nargs="+", metavar="FILE",
+        help="the locations of files to compile; accepts patterns"
+    )
+    parser.add_argument("--commit_ps", action="store_true",
+        help="commit page source; use the current commit's page source link instead of linking to the latest one")
+    args = parser.parse_args()
+
+def main_old():
     parser = argparse.ArgumentParser(
         description='generate a site or just a few files')
     parser.add_argument("--files", "--file", "-f", nargs='+',
